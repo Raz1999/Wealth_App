@@ -1,5 +1,10 @@
 # MyWealth — Personal Financial Dashboard
 
+## Setup
+```bash
+npm install
+```
+
 ## Running the app
 ```bash
 python -m http.server 8080
