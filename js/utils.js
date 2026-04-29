@@ -8,4 +8,13 @@ export function formatPercent(n) {
   return n.toFixed(1) + '%';
 }
 
-if (typeof module !== 'undefined') module.exports = { formatCurrency, formatPercent };
+export function escapeHtml(s) {
+  return String(s)
+    .replace(/&/g, '&amp;')
+    .replace(/</g, '&lt;')
+    .replace(/>/g, '&gt;')
+    .replace(/"/g, '&quot;')
+    .replace(/'/g, '&#39;');
+}
+
+if (typeof module !== 'undefined') module.exports = { formatCurrency, formatPercent, escapeHtml };

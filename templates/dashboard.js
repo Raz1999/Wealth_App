@@ -1,7 +1,7 @@
 import { t } from '../js/i18n.js';
 import { listAssets } from '../js/assets.js';
 import { totalMonthlyContribution, projectAsset } from '../js/calculations.js';
-import { formatCurrency, formatPercent } from '../js/utils.js';
+import { formatCurrency, formatPercent, escapeHtml } from '../js/utils.js';
 
 function avgAnnualReturn(assets) {
   if (!assets.length) return 0;
@@ -22,9 +22,9 @@ function renderAssetCard(asset) {
     <div class="asset-card" style="--asset-color: ${asset.color}"
          onclick="window.__navigate('#product/${asset.id}')">
       <div class="asset-card-left">
-        <div class="asset-icon">${asset.icon}</div>
+        <div class="asset-icon">${escapeHtml(asset.icon)}</div>
         <div>
-          <div class="asset-name">${asset.name}</div>
+          <div class="asset-name">${escapeHtml(asset.name)}</div>
           <div class="asset-type">${t('type.' + asset.type)}</div>
         </div>
       </div>

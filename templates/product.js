@@ -1,6 +1,6 @@
 import { t } from '../js/i18n.js';
 import { getAsset } from '../js/assets.js';
-import { formatCurrency } from '../js/utils.js';
+import { formatCurrency, escapeHtml } from '../js/utils.js';
 
 // ─── Form field helpers ───
 function field(id, labelKey, value = '', type = 'number', extra = '') {
@@ -195,7 +195,7 @@ export function renderProduct(id, type) {
       ${!isNew ? `
       <div class="card">
         <div class="flex-between" style="margin-bottom:12px">
-          <span class="section-label">תחזית — ${asset.name}</span>
+          <span class="section-label">תחזית — ${escapeHtml(asset.name)}</span>
           <div class="chart-controls">
             <button class="chart-ctrl active" onclick="window.__setProductHorizon(60,this)">5Y</button>
             <button class="chart-ctrl" onclick="window.__setProductHorizon(240,this)">20Y</button>

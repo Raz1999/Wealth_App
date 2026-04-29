@@ -105,7 +105,7 @@ body {
   padding: 14px 18px;
   display: flex; align-items: center; justify-content: space-between;
   cursor: pointer; transition: box-shadow 0.15s;
-  border-right: 4px solid var(--asset-color, var(--blue-primary));
+  border-inline-start: 4px solid var(--asset-color, var(--blue-primary));
 }
 .asset-card:hover { box-shadow: 0 4px 14px rgba(0,119,182,0.12); }
 .asset-card-left { display: flex; align-items: center; gap: 12px; }
