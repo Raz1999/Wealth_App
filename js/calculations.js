@@ -18,7 +18,7 @@ function projectStandard({ pv, annualRate, annualFee = 0, pmt = 0, months }) {
 function projectPension({ pv, annualRate, accumulationFee = 0, depositFee = 0, salary, employeeContrib, employerContrib, months }) {
   const pmtGross = salary * (employeeContrib + employerContrib);
   const pmtNet = pmtGross * (1 - depositFee);
-  return projectStandard({ pv, annualRate, annualFee: annualRate, pmt: pmtNet, months });
+  return projectStandard({ pv, annualRate, annualFee: accumulationFee, pmt: pmtNet, months });
 }
 
 /**

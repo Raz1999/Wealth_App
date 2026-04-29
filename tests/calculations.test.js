@@ -28,9 +28,10 @@ test('projectPension: contributions from salary', () => {
     pv: 0, annualRate: 0.08, accumulationFee: 0.005, depositFee: 0.005,
     salary: 10000, employeeContrib: 0.07, employerContrib: 0.075, months: 12
   });
-  expect(result).toBeGreaterThan(0);
-  // Should be approximately 12 * 1442.75 plus small compounding
-  expect(result).toBeCloseTo(12 * 1442.75, -2);
+  expect(result).toBeGreaterThan(12 * 1442.75); // compounding adds to simple sum
+  // effectiveAnnual = 0.08 - 0.005 = 0.075, rm = 0.075/12 = 0.00625
+  // FV = 1442.75 * ((1.00625)^12 - 1) / 0.00625 ≈ 17925
+  expect(result).toBeCloseTo(17925, -2);
 });
 
 // ─── Deposit ───
