@@ -19,3 +19,7 @@ test('setLanguage switches to English', () => {
 test('t() falls back to key if missing', () => {
   expect(t('nonexistent.key')).toBe('nonexistent.key');
 });
+
+test('t() replaces placeholders', () => {
+  expect(t('dashboard.forecast', { years: 5 })).toBe('תחזית ב-5 שנה');
+});

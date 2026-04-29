@@ -118,12 +118,13 @@ function getLanguage() { return currentLang; }
 function setLanguage(lang) {
   if (!strings[lang]) return;
   currentLang = lang;
-  document.documentElement.lang = lang;
-  document.documentElement.dir = lang === 'he' ? 'rtl' : 'ltr';
-  document.querySelectorAll('[data-i18n]').forEach(el => {
-    const key = el.getAttribute('data-i18n');
-    el.textContent = t(key);
-  });
+  if (typeof document !== 'undefined') {
+    document.documentElement.lang = lang;
+    document.documentElement.dir = lang === 'he' ? 'rtl' : 'ltr';
+    document.querySelectorAll('[data-i18n]').forEach(el => {
+      el.textContent = t(el.getAttribute('data-i18n'));
+    });
+  }
 }
 
 function t(key, vars = {}) {
