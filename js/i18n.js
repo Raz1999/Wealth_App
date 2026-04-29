@@ -128,9 +128,10 @@ function setLanguage(lang) {
 
 function t(key, vars = {}) {
   let str = strings[currentLang]?.[key] ?? key;
-  Object.entries(vars).forEach(([k, v]) => { str = str.replace(`{${k}}`, v); });
+  Object.entries(vars).forEach(([k, v]) => { str = str.replace(new RegExp(`\\{${k}\\}`, 'g'), String(v)); });
   return str;
 }
 
 // CommonJS export for Jest; browser uses ES module default
 if (typeof module !== 'undefined') module.exports = { t, setLanguage, getLanguage };
+export { t, setLanguage, getLanguage };

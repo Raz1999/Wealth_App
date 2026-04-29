@@ -9,10 +9,11 @@ test('t() returns Hebrew string by default', () => {
   expect(t('nav.addAsset')).toBe('+ הוסף נכס');
 });
 
+afterEach(() => { setLanguage('he'); });
+
 test('setLanguage switches to English', () => {
   setLanguage('en');
   expect(t('nav.addAsset')).toBe('+ Add Asset');
-  setLanguage('he'); // reset
 });
 
 test('t() falls back to key if missing', () => {
