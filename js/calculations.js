@@ -5,7 +5,7 @@
 function projectStandard({ pv, annualRate, annualFee = 0, pmt = 0, months }) {
   const effectiveAnnual = annualRate - annualFee;
   const rm = effectiveAnnual / 12;
-  if (rm === 0) return pv + pmt * months;
+  if (Math.abs(rm) < 1e-10) return pv + pmt * months;
   const fv = pv * Math.pow(1 + rm, months) + pmt * ((Math.pow(1 + rm, months) - 1) / rm);
   return fv;
 }
@@ -35,11 +35,15 @@ function projectDeposit({ principal, annualRate, interestType = 'simple', months
   return projectStandard({ pv: principal, annualRate, annualFee: 0, pmt: 0, months: effectiveMonths });
 }
 
+const MARKET_RATE_ANNUAL = 0.10; // SPY historical average
+
 /** Returns holding annual rate as a decimal (0–1). */
 function getHoldingRate(holding) {
-  if (holding.projectionMode === 'market') return 0.10; // SPY ~10%
+  if (holding.projectionMode === 'market') return MARKET_RATE_ANNUAL;
   if (holding.projectionMode === 'manual') return (holding.manualReturn || 0) / 100;
-  return (holding.manualReturn || 7) / 100; // historical CAGR fallback
+  // 'historical' — Plan B will populate holding.historicalCagr from fetched price data.
+  // Until then, fall back to manualReturn or 7% global equity average.
+  return (holding.historicalCagr || holding.manualReturn || 7) / 100;
 }
 
 /**
@@ -124,7 +128,8 @@ function totalMonthlyContribution(assets) {
     const f = a.fields || {};
     if (a.type === 'checking' || a.type === 'deposit') return sum;
     if (a.type === 'pension' || a.type === 'hashtalamut') {
-      return sum + (f.salary || 0) * (((f.employeeContrib || 0) + (f.employerContrib || 0)) / 100);
+      const gross = (f.salary || 0) * (((f.employeeContrib || 0) + (f.employerContrib || 0)) / 100);
+      return sum + gross * (1 - (f.depFee || 0) / 100);
     }
     return sum + (f.monthlyContribution || 0);
   }, 0);
