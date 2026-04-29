@@ -1,10 +1,11 @@
 import { setLanguage, getLanguage, t } from './i18n.js';
-import { loadData, saveData } from './storage.js';
+import { loadData, saveData, snapshotNetWorth } from './storage.js';
 import { listAssets, getAsset, createAsset, updateAsset, deleteAsset } from './assets.js';
-import { projectAsset, computeTargetForecast } from './calculations.js';
-import { renderProjectionChart } from './charts.js';
+import { fetchPortfolioPrices } from './market.js';
+import { projectAsset, computeTargetForecast, getAssetCurrentValue } from './calculations.js';
+import { renderProjectionChart, renderAllocationChart, renderHistoryChart } from './charts.js';
 import { formatCurrency } from './utils.js';
-import { renderDashboard, renderTargetResult } from '../templates/dashboard.js';
+import { renderDashboard, renderTargetResult, buildAllocationSlices } from '../templates/dashboard.js';
 import { renderProduct } from '../templates/product.js';
 import { renderTypePicker } from '../templates/type-picker.js';
 import { renderSimulator, renderAccordionBody } from '../templates/simulator.js';
@@ -139,10 +140,17 @@ function route() {
   if (base === 'dashboard' || base === '') {
     _simActive = false;
     const dashData = loadData();
-    mount(renderDashboard(dashData.settings));
+    const currentTotal = listAssets().reduce((s, a) => s + getAssetCurrentValue(a), 0);
+    snapshotNetWorth(currentTotal);
+    const freshData = loadData(); // re-read after potential snapshot write
+    mount(renderDashboard(freshData.settings, freshData.history || []));
     renderProjectionChart('chart-global',
       [{ data: buildGlobalDataset(240), color: '#0077b6', fill: true }],
       { months: 240 });
+    const slices = buildAllocationSlices(listAssets());
+    if (slices.length) renderAllocationChart('chart-allocation', slices);
+    const histData = freshData.history || [];
+    if (histData.length >= 2) renderHistoryChart('chart-history', histData);
 
   } else if (base === 'product') {
     _simActive = false;
@@ -188,6 +196,72 @@ window.__toggleLang = () => {
   saveData(data);
   setLanguage(next);
   route();
+};
+
+window.__exportData = () => {
+  const json = JSON.stringify(loadData(), null, 2);
+  const blob = new Blob([json], { type: 'application/json' });
+  const url  = URL.createObjectURL(blob);
+  const a    = document.createElement('a');
+  a.href     = url;
+  a.download = `mywealth-backup-${new Date().toISOString().slice(0, 10)}.json`;
+  document.body.appendChild(a);
+  a.click();
+  document.body.removeChild(a);
+  URL.revokeObjectURL(url);
+};
+
+window.__importData = (input) => {
+  const file = input.files[0];
+  if (!file) return;
+  const reader = new FileReader();
+  reader.onload = (e) => {
+    try {
+      const parsed = JSON.parse(e.target.result);
+      if (!parsed.assets || !parsed.settings) {
+        alert('קובץ לא תקין — חסרים שדות assets או settings');
+        return;
+      }
+      saveData(parsed);
+      route();
+    } catch {
+      alert('שגיאה בקריאת הקובץ');
+    }
+  };
+  reader.readAsText(file);
+  input.value = '';
+};
+
+window.__fetchPrices = async () => {
+  const statusEl = document.getElementById('prices-status');
+  const id = window.location.hash.split('/')[1]?.split('?')[0];
+  const asset = id ? getAsset(id) : null;
+  if (!asset || asset.type !== 'portfolio') return;
+
+  if (statusEl) statusEl.textContent = 'מעדכן...';
+  const priceMap = await fetchPortfolioPrices(asset);
+
+  let updated = 0;
+  const rows = document.querySelectorAll('#holdings-body tr');
+  rows.forEach((tr, i) => {
+    const tickerInput = tr.querySelector(`input[name="ticker_${i}"]`);
+    const valueInput  = tr.querySelector(`input[name="totalValue_${i}"]`);
+    const qtyInput    = tr.querySelector(`input[name="quantity_${i}"]`);
+    if (!tickerInput || !valueInput) return;
+    const ticker = tickerInput.value.trim();
+    const price  = priceMap.get(ticker);
+    const qty    = parseFloat(qtyInput?.value) || 0;
+    if (price !== null && price !== undefined) {
+      if (qty > 0) valueInput.value = Math.round(price * qty);
+      updated++;
+    }
+  });
+
+  if (statusEl) {
+    statusEl.textContent = updated
+      ? `עודכנו ${updated} אחזקות · ${new Date().toLocaleTimeString('he-IL')}`
+      : 'לא נמצאו מחירים';
+  }
 };
 
 window.__setHorizon = (months, btn) => {

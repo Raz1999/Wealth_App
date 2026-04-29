@@ -75,7 +75,11 @@ function formPortfolio(f) {
         </tfoot>` : ''}
       </table>
     </div>
-    <button type="button" class="btn btn-ghost btn-sm" onclick="window.__addHoldingRow()">${t('asset.addHolding')}</button>
+    <div style="display:flex;align-items:center;gap:12px;flex-wrap:wrap">
+      <button type="button" class="btn btn-ghost btn-sm" onclick="window.__addHoldingRow()">${t('asset.addHolding')}</button>
+      <button type="button" class="btn btn-ghost btn-sm" onclick="window.__fetchPrices()">↻ עדכן מחירים</button>
+      <span id="prices-status" style="font-size:11px;color:var(--text-muted)"></span>
+    </div>
   `;
 }
 

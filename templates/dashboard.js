@@ -3,6 +3,30 @@ import { listAssets } from '../js/assets.js';
 import { totalMonthlyContribution, projectAsset, getAssetCurrentValue, computeTargetForecast, getPortfolioEffectiveReturn } from '../js/calculations.js';
 import { formatCurrency, escapeHtml } from '../js/utils.js';
 
+const TYPE_COLORS = {
+  pension:     '#8b5cf6',
+  hashtalamut: '#a78bfa',
+  portfolio:   '#0077b6',
+  gemel:       '#06b6d4',
+  kesafi:      '#10b981',
+  deposit:     '#f59e0b',
+  checking:    '#94a3b8',
+  custom:      '#ec4899',
+};
+
+export function buildAllocationSlices(assets) {
+  const map = {};
+  assets.forEach(a => {
+    const v = getAssetCurrentValue(a);
+    if (v > 0) map[a.type] = (map[a.type] || 0) + v;
+  });
+  return Object.entries(map).map(([type, value]) => ({
+    label: t('type.' + type),
+    value,
+    color: TYPE_COLORS[type] || '#94a3b8',
+  }));
+}
+
 function assetAnnualReturn(asset) {
   if (asset.type === 'portfolio') return getPortfolioEffectiveReturn(asset);
   return asset.fields?.expectedReturn || asset.fields?.interestRate || 0;
@@ -35,6 +59,42 @@ function renderAssetCard(asset) {
         <div class="asset-amount" style="color: ${asset.color}">${formatCurrency(value)}</div>
         <div class="asset-return">${ret > 0 ? '+' : ''}${ret.toFixed(1)}% / שנה</div>
       </div>
+    </div>`;
+}
+
+// ─── History chart card ───────────────────────────────────────
+
+function renderHistoryCard(history) {
+  if (!history || history.length < 2) return '';
+  return `
+    <div class="card">
+      <span class="section-label" style="display:block;margin-bottom:12px">היסטוריית שווי נטו</span>
+      <div class="chart-wrap"><canvas id="chart-history"></canvas></div>
+    </div>`;
+}
+
+// ─── Deposit maturity alerts ──────────────────────────────────
+
+function renderMaturityAlerts(assets) {
+  const now = new Date();
+  const rows = assets.filter(a => {
+    if (a.type !== 'deposit' || !a.fields?.maturityDate) return false;
+    const days = Math.round((new Date(a.fields.maturityDate) - now) / 86400000);
+    return days >= 0 && days <= 60;
+  }).map(a => {
+    const days = Math.round((new Date(a.fields.maturityDate) - now) / 86400000);
+    return `<div style="display:flex;justify-content:space-between;align-items:center;padding:6px 0;border-bottom:1px solid var(--border)">
+      <span style="font-weight:600">${escapeHtml(a.name)}</span>
+      <span style="font-size:12px;color:${days <= 14 ? '#dc2626' : '#d97706'}">
+        ${days === 0 ? 'פג היום!' : `פג בעוד ${days} ימים`}
+      </span>
+    </div>`;
+  });
+  if (!rows.length) return '';
+  return `
+    <div class="card" style="border:1.5px solid #d97706;background:#fffbeb">
+      <div style="font-weight:700;color:#92400e;margin-bottom:8px">תוכניות חיסכון שפגות בקרוב</div>
+      ${rows.join('')}
     </div>`;
 }
 
@@ -106,7 +166,7 @@ function renderTargetCard(assets, settings) {
 
 // ─── Main export ──────────────────────────────────────────────
 
-export function renderDashboard(settings = {}) {
+export function renderDashboard(settings = {}, history = []) {
   const assets        = listAssets();
   const totalValue    = assets.reduce((s, a) => s + getAssetCurrentValue(a), 0);
   const monthlyPmt    = totalMonthlyContribution(assets);
@@ -121,6 +181,9 @@ export function renderDashboard(settings = {}) {
 
   return `
     <div class="page">
+      <!-- Maturity alerts (if any) -->
+      ${renderMaturityAlerts(assets)}
+
       <!-- Hero -->
       <div class="card card-hero">
         <div class="hero-grid">
@@ -151,6 +214,16 @@ export function renderDashboard(settings = {}) {
         <div class="chart-wrap"><canvas id="chart-global"></canvas></div>
       </div>
 
+      <!-- Asset allocation donut -->
+      ${assets.length ? `
+      <div class="card">
+        <span class="section-label" style="display:block;margin-bottom:12px">פילוח נכסים</span>
+        <div class="chart-wrap" style="height:200px"><canvas id="chart-allocation"></canvas></div>
+      </div>` : ''}
+
+      <!-- Net worth history chart -->
+      ${renderHistoryCard(history)}
+
       <!-- Target forecast card -->
       ${renderTargetCard(assets, settings)}
 
@@ -165,6 +238,15 @@ export function renderDashboard(settings = {}) {
           <div style="font-size:11px;color:var(--text-muted);margin-top:3px">${t('dashboard.simSub')}</div>
         </div>
         <button class="btn btn-primary btn-sm" onclick="window.__navigate('#simulator')">${t('dashboard.openSim')}</button>
+      </div>
+
+      <!-- Backup / Restore -->
+      <div style="display:flex;gap:10px;justify-content:center;padding:8px 0 4px">
+        <button class="btn btn-ghost btn-sm" onclick="window.__exportData()">⬇ גיבוי נתונים</button>
+        <label class="btn btn-ghost btn-sm" style="cursor:pointer">
+          ⬆ שחזור נתונים
+          <input type="file" accept=".json" style="display:none" onchange="window.__importData(this)">
+        </label>
       </div>
     </div>`;
 }
