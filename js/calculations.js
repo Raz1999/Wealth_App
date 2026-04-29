@@ -216,7 +216,9 @@ function computeRequiredMonthly(assets, settings) {
   if (totalVal > 0) {
     weightedRate = assets.reduce((s, a) => {
       const w = getAssetCurrentValue(a) / totalVal;
-      const r = (a.fields?.expectedReturn || a.fields?.interestRate || 0) / 100;
+      const r = a.type === 'portfolio'
+        ? getPortfolioEffectiveReturn(a) / 100
+        : (a.fields?.expectedReturn || a.fields?.interestRate || 0) / 100;
       return s + w * r;
     }, 0);
   }

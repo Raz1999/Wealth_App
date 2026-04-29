@@ -141,7 +141,6 @@ function route() {
 
   if (base === 'dashboard' || base === '') {
     _simActive = false;
-    const dashData = loadData();
     const currentTotal = listAssets().reduce((s, a) => s + getAssetCurrentValue(a), 0);
     snapshotNetWorth(currentTotal);
     const freshData = loadData(); // re-read after potential snapshot write
@@ -237,8 +236,32 @@ window.__importData = (input) => {
 window.__saveRebalance = (type, value) => {
   const data = loadData();
   if (!data.settings.targetAllocation) data.settings.targetAllocation = {};
-  data.settings.targetAllocation[type] = Number(value) || 0;
+  const numValue = Number(value) || 0;
+  data.settings.targetAllocation[type] = numValue;
   saveData(data);
+
+  // Update drift badge for this row
+  const driftEl = document.getElementById(`rebalance-drift-${type}`);
+  if (driftEl) {
+    const assets   = listAssets();
+    const total    = assets.reduce((s, a) => s + getAssetCurrentValue(a), 0);
+    const typeVal  = assets.filter(a => a.type === type).reduce((s, a) => s + getAssetCurrentValue(a), 0);
+    const current  = total ? (typeVal / total * 100) : 0;
+    const drift    = current - numValue;
+    const color    = Math.abs(drift) < 2 ? 'var(--green-positive)' : drift > 0 ? 'var(--yellow-mid)' : 'var(--red-negative)';
+    driftEl.textContent   = numValue ? `${drift >= 0 ? '+' : ''}${drift.toFixed(1)}%` : '';
+    driftEl.style.color   = color;
+    driftEl.style.display = numValue ? '' : 'none';
+  }
+
+  // Update total warning
+  const warningEl = document.getElementById('rebalance-warning');
+  if (warningEl) {
+    const sum = Object.values(data.settings.targetAllocation).reduce((s, v) => s + (Number(v) || 0), 0);
+    const show = sum > 0 && Math.abs(sum - 100) > 1;
+    warningEl.textContent   = show ? `סה"כ יעד: ${sum}% (צריך להיות 100%)` : '';
+    warningEl.style.display = show ? '' : 'none';
+  }
 };
 
 window.__fetchPrices = async () => {
@@ -458,10 +481,6 @@ window.__toggleDark = () => {
   data.settings.darkMode = !data.settings.darkMode;
   saveData(data);
   applyTheme(data.settings.darkMode);
-  // Re-render nav to flip icon
-  const nav = document.querySelector('nav');
-  if (nav) nav.outerHTML = renderNav();
-  // Re-attach nav since outerHTML swap orphans it; safer to just re-mount
   route();
 };
 

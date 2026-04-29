@@ -128,7 +128,7 @@ function renderRebalancingCard(assets, targetAllocation) {
                    value="${targetPct || ''}" placeholder="יעד%"
                    min="0" max="100" step="1"
                    oninput="window.__saveRebalance('${type}', this.value)">
-            ${targetPct ? `<span style="font-size:11px;font-weight:700;${driftStyle}">${driftSign}${drift.toFixed(1)}%</span>` : ''}
+            <span id="rebalance-drift-${type}" style="font-size:11px;font-weight:700;${targetPct ? driftStyle : 'display:none'}">${targetPct ? `${driftSign}${drift.toFixed(1)}%` : ''}</span>
           </div>
         </div>
         <div style="background:var(--border);border-radius:4px;height:8px;overflow:hidden">
@@ -138,9 +138,8 @@ function renderRebalancingCard(assets, targetAllocation) {
   });
 
   const totalTarget = Object.values(targetAllocation).reduce((s, v) => s + (Number(v) || 0), 0);
-  const warning = totalTarget > 0 && Math.abs(totalTarget - 100) > 1
-    ? `<div style="font-size:11px;color:var(--yellow-mid);margin-top:4px">סה"כ יעד: ${totalTarget}% (צריך להיות 100%)</div>`
-    : '';
+  const warningVisible = totalTarget > 0 && Math.abs(totalTarget - 100) > 1;
+  const warning = `<div id="rebalance-warning" style="font-size:11px;color:var(--yellow-mid);margin-top:4px${warningVisible ? '' : ';display:none'}">${warningVisible ? `סה"כ יעד: ${totalTarget}% (צריך להיות 100%)` : ''}</div>`;
 
   return `
     <div class="card">
