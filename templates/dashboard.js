@@ -1,7 +1,12 @@
 import { t, getLanguage } from '../js/i18n.js';
 import { listAssets } from '../js/assets.js';
-import { totalMonthlyContribution, projectAsset, getAssetCurrentValue, computeTargetForecast } from '../js/calculations.js';
+import { totalMonthlyContribution, projectAsset, getAssetCurrentValue, computeTargetForecast, getPortfolioEffectiveReturn } from '../js/calculations.js';
 import { formatCurrency, escapeHtml } from '../js/utils.js';
+
+function assetAnnualReturn(asset) {
+  if (asset.type === 'portfolio') return getPortfolioEffectiveReturn(asset);
+  return asset.fields?.expectedReturn || asset.fields?.interestRate || 0;
+}
 
 function avgAnnualReturn(assets) {
   if (!assets.length) return 0;
@@ -9,14 +14,13 @@ function avgAnnualReturn(assets) {
   if (!totalValue) return 0;
   return assets.reduce((s, a) => {
     const v = getAssetCurrentValue(a);
-    const r = a.fields?.expectedReturn || a.fields?.interestRate || 0;
-    return s + (v / totalValue) * r;
+    return s + (v / totalValue) * assetAnnualReturn(a);
   }, 0);
 }
 
 function renderAssetCard(asset) {
   const value = getAssetCurrentValue(asset);
-  const ret   = asset.fields?.expectedReturn ?? asset.fields?.interestRate ?? 0;
+  const ret   = assetAnnualReturn(asset);
   return `
     <div class="asset-card" style="--asset-color: ${asset.color}"
          onclick="window.__navigate('#product/${asset.id}')">
@@ -29,7 +33,7 @@ function renderAssetCard(asset) {
       </div>
       <div class="asset-card-right">
         <div class="asset-amount" style="color: ${asset.color}">${formatCurrency(value)}</div>
-        <div class="asset-return">+${ret}% / שנה</div>
+        <div class="asset-return">${ret > 0 ? '+' : ''}${ret.toFixed(1)}% / שנה</div>
       </div>
     </div>`;
 }

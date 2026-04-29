@@ -255,11 +255,13 @@ window.__addHoldingRow = () => {
     <td><input class="form-input" style="width:80px" type="number" name="quantity_${i}"></td>
     <td><input class="form-input" style="width:100px" type="number" name="totalValue_${i}"></td>
     <td><select class="form-input" style="width:148px" name="projMode_${i}"
-              onchange="const td=this.closest('tr').querySelector('.manual-ret-td');td.style.display=this.value==='manual'?'':'none'">
+              onchange="const td=this.closest('tr').querySelector('.manual-ret-td');td.style.display=(this.value==='manual'||this.value==='historical')?'':'none'">
       <option value="manual" selected>ידני (%)</option>
       <option value="market">S&P 500 (~10%)</option>
       <option value="ta125">ת"א 125 (~8%)</option>
+      <option value="msci">MSCI World (~9%)</option>
       <option value="historical">CAGR היסטורי</option>
+      <option value="unknown">לא ידוע (0%)</option>
     </select></td>
     <td class="manual-ret-td"><input class="form-input" style="width:60px" type="number" step="any" name="manualReturn_${i}" placeholder="%"></td>
     <td><button type="button" class="btn btn-danger btn-sm" onclick="this.closest('tr').remove()">✕</button></td>`;

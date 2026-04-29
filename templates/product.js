@@ -1,6 +1,7 @@
 import { t } from '../js/i18n.js';
 import { getAsset } from '../js/assets.js';
 import { formatCurrency, escapeHtml } from '../js/utils.js';
+import { getPortfolioEffectiveReturn, getHoldingRate } from '../js/calculations.js';
 
 // ─── Form field helpers ───
 function field(id, labelKey, value = '', type = 'number', extra = '') {
@@ -30,19 +31,25 @@ function formPortfolio(f) {
       <td><input class="form-input" style="width:100px" type="number" name="totalValue_${i}" value="${h.totalValue || ''}"></td>
       <td>
         <select class="form-input" style="width:148px" name="projMode_${i}"
-                onchange="const td=this.closest('tr').querySelector('.manual-ret-td');td.style.display=this.value==='manual'?'':'none'">
+                onchange="const td=this.closest('tr').querySelector('.manual-ret-td');td.style.display=(this.value==='manual'||this.value==='historical')?'':'none'">
           <option value="manual"     ${(!h.projectionMode||h.projectionMode==='manual')?'selected':''}>ידני (%)</option>
           <option value="market"     ${h.projectionMode==='market'?'selected':''}>S&P 500 (~10%)</option>
           <option value="ta125"      ${h.projectionMode==='ta125'?'selected':''}>ת"א 125 (~8%)</option>
+          <option value="msci"       ${h.projectionMode==='msci'?'selected':''}>MSCI World (~9%)</option>
           <option value="historical" ${h.projectionMode==='historical'?'selected':''}>CAGR היסטורי</option>
+          <option value="unknown"    ${h.projectionMode==='unknown'?'selected':''}>לא ידוע (0%)</option>
         </select>
       </td>
-      <td class="manual-ret-td" style="display:${(h.projectionMode && h.projectionMode !== 'manual') ? 'none' : ''}">
+      <td class="manual-ret-td" style="display:${(h.projectionMode && h.projectionMode !== 'manual' && h.projectionMode !== 'historical') ? 'none' : ''}">
         <input class="form-input" style="width:60px" type="number" step="any" name="manualReturn_${i}" value="${h.manualReturn || ''}" placeholder="%">
       </td>
       <td><button type="button" class="btn btn-danger btn-sm" onclick="this.closest('tr').remove()">✕</button></td>
     </tr>
   `).join('');
+
+  const totalHoldingsValue = (f.holdings || []).reduce((s, h) => s + (h.totalValue || 0), 0);
+  const dummyAsset = { type: 'portfolio', fields: f };
+  const effectiveReturn = f.holdings?.length ? getPortfolioEffectiveReturn(dummyAsset) : 0;
 
   return `
     <div class="form-grid-2">
@@ -57,6 +64,15 @@ function formPortfolio(f) {
           <th>טיקר / קוד קרן</th><th>שם</th><th>כמות</th><th>שווי (₪)</th><th>תחזית</th><th>%</th><th></th>
         </tr></thead>
         <tbody id="holdings-body">${holdingRows}</tbody>
+        ${totalHoldingsValue > 0 ? `
+        <tfoot>
+          <tr style="font-weight:700;border-top:2px solid var(--border)">
+            <td colspan="3" style="padding:8px 4px;color:var(--text-secondary);font-size:12px">סה"כ תיק</td>
+            <td style="padding:8px 4px">${formatCurrency(totalHoldingsValue)}</td>
+            <td colspan="2" style="padding:8px 4px;color:var(--accent);font-size:12px">תשואה אפקטיבית: ${effectiveReturn.toFixed(2)}%</td>
+            <td></td>
+          </tr>
+        </tfoot>` : ''}
       </table>
     </div>
     <button type="button" class="btn btn-ghost btn-sm" onclick="window.__addHoldingRow()">${t('asset.addHolding')}</button>

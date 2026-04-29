@@ -37,14 +37,32 @@ function projectDeposit({ principal, annualRate, interestType = 'simple', months
 
 const MARKET_RATE_ANNUAL = 0.10; // S&P 500 historical average
 const TA125_RATE_ANNUAL  = 0.08; // ת"א 125 historical average
+const MSCI_WORLD_RATE    = 0.09; // MSCI World historical average
 
 /** Returns holding annual rate as a decimal (0–1). */
 function getHoldingRate(holding) {
-  if (holding.projectionMode === 'market')  return MARKET_RATE_ANNUAL;
-  if (holding.projectionMode === 'ta125')   return TA125_RATE_ANNUAL;
-  if (holding.projectionMode === 'manual')  return (holding.manualReturn || 0) / 100;
-  // 'historical' — falls back to manualReturn or 7% until market data is implemented
-  return (holding.historicalCagr || holding.manualReturn || 7) / 100;
+  if (holding.projectionMode === 'market')    return MARKET_RATE_ANNUAL;
+  if (holding.projectionMode === 'ta125')     return TA125_RATE_ANNUAL;
+  if (holding.projectionMode === 'msci')      return MSCI_WORLD_RATE;
+  if (holding.projectionMode === 'unknown')   return 0;
+  if (holding.projectionMode === 'manual')    return (holding.manualReturn || 0) / 100;
+  // 'historical' — user entered their own researched rate in manualReturn
+  return (holding.historicalCagr || holding.manualReturn || 0) / 100;
+}
+
+/**
+ * Compute the effective annual return for a portfolio asset (%).
+ * Weighted average of holding rates minus management fee.
+ */
+function getPortfolioEffectiveReturn(asset) {
+  const holdings = asset.fields?.holdings || [];
+  const totalVal  = holdings.reduce((s, h) => s + (h.totalValue || 0), 0);
+  if (!totalVal || !holdings.length) return 0;
+  const weighted  = holdings.reduce((s, h) => {
+    const w = (h.totalValue || 0) / totalVal;
+    return s + w * getHoldingRate(h) * 100;
+  }, 0);
+  return Math.max(0, weighted - (asset.fields?.managementFee || 0));
 }
 
 /**
@@ -172,5 +190,5 @@ function computeTargetForecast(assets, settings) {
   return { total, yearAt, ageAt, yearsAway, realValue };
 }
 
-if (typeof module !== 'undefined') module.exports = { projectStandard, projectPension, projectDeposit, projectAsset, totalMonthlyContribution, getHoldingRate, getAssetCurrentValue, computeTargetForecast };
-export { projectStandard, projectPension, projectDeposit, projectAsset, totalMonthlyContribution, getHoldingRate, getAssetCurrentValue, computeTargetForecast };
+if (typeof module !== 'undefined') module.exports = { projectStandard, projectPension, projectDeposit, projectAsset, totalMonthlyContribution, getHoldingRate, getAssetCurrentValue, computeTargetForecast, getPortfolioEffectiveReturn };
+export { projectStandard, projectPension, projectDeposit, projectAsset, totalMonthlyContribution, getHoldingRate, getAssetCurrentValue, computeTargetForecast, getPortfolioEffectiveReturn };
