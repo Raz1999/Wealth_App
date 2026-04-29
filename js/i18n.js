@@ -72,6 +72,12 @@ const strings = {
     'sim.sliderEmplrContrib': 'הפרשת מעביד (%)',
     'sim.effectiveContrib':   'הפקדה אפקטיבית',
     'sim.noAssets':           'אין נכסים לסמלץ',
+    'target.title':           'יעד פיננסי',
+    'target.currentAge':      'גיל נוכחי',
+    'target.modeYears':       'בעוד',
+    'target.modeAge':         'בגיל',
+    'target.modeYear':        'בשנת',
+    'target.years':           'שנים',
   },
   en: {
     'nav.logo':           'MyWealth',
@@ -146,6 +152,12 @@ const strings = {
     'sim.sliderEmplrContrib': 'Employer Contrib (%)',
     'sim.effectiveContrib':   'Effective Contribution',
     'sim.noAssets':           'No assets to simulate',
+    'target.title':           'Financial Target',
+    'target.currentAge':      'Current age',
+    'target.modeYears':       'In',
+    'target.modeAge':         'At age',
+    'target.modeYear':        'Year',
+    'target.years':           'years',
   }
 };
 

@@ -1,10 +1,10 @@
 import { setLanguage, getLanguage, t } from './i18n.js';
 import { loadData, saveData } from './storage.js';
 import { listAssets, getAsset, createAsset, updateAsset, deleteAsset } from './assets.js';
-import { projectAsset } from './calculations.js';
+import { projectAsset, computeTargetForecast } from './calculations.js';
 import { renderProjectionChart } from './charts.js';
 import { formatCurrency } from './utils.js';
-import { renderDashboard } from '../templates/dashboard.js';
+import { renderDashboard, renderTargetResult } from '../templates/dashboard.js';
 import { renderProduct } from '../templates/product.js';
 import { renderTypePicker } from '../templates/type-picker.js';
 import { renderSimulator, renderAccordionBody } from '../templates/simulator.js';
@@ -138,7 +138,8 @@ function route() {
 
   if (base === 'dashboard' || base === '') {
     _simActive = false;
-    mount(renderDashboard());
+    const dashData = loadData();
+    mount(renderDashboard(dashData.settings));
     renderProjectionChart('chart-global',
       [{ data: buildGlobalDataset(240), color: '#0077b6', fill: true }],
       { months: 240 });
@@ -249,7 +250,7 @@ window.__addHoldingRow = () => {
   const i = tbody.rows.length;
   const tr = document.createElement('tr');
   tr.innerHTML = `
-    <td><input class="form-input" style="width:90px" name="ticker_${i}"></td>
+    <td><input class="form-input" style="width:110px" name="ticker_${i}" placeholder="AAPL / 5100386"></td>
     <td><input class="form-input" style="width:80px" name="holding_name_${i}" placeholder="אוטו-מילוי"></td>
     <td><input class="form-input" style="width:80px" type="number" name="quantity_${i}"></td>
     <td><input class="form-input" style="width:100px" type="number" name="totalValue_${i}"></td>
@@ -261,6 +262,23 @@ window.__addHoldingRow = () => {
     <td><input class="form-input" style="width:60px" type="number" name="manualReturn_${i}" placeholder="%"></td>
     <td><button type="button" class="btn btn-danger btn-sm" onclick="this.closest('tr').remove()">✕</button></td>`;
   tbody.appendChild(tr);
+};
+
+// ─── Target forecast handler ───
+window.__saveTarget = () => {
+  const currentAge  = Number(document.getElementById('target-current-age')?.value) || 0;
+  const mode        = document.getElementById('target-mode')?.value || 'years';
+  const targetValue = Number(document.getElementById('target-value')?.value) || 20;
+
+  const data = loadData();
+  data.settings.currentAge  = currentAge;
+  data.settings.targetMode  = mode;
+  data.settings.targetValue = targetValue;
+  saveData(data);
+
+  const forecast = computeTargetForecast(listAssets(), { currentAge, targetMode: mode, targetValue });
+  const resultEl = document.getElementById('target-result');
+  if (resultEl) resultEl.innerHTML = renderTargetResult(forecast);
 };
 
 // ─── Simulator handlers ───

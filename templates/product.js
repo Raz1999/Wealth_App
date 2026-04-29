@@ -7,7 +7,7 @@ function field(id, labelKey, value = '', type = 'number', extra = '') {
   return `
     <div class="form-group">
       <label class="form-label" for="${id}">${t(labelKey)}</label>
-      <input class="form-input" id="${id}" name="${id}" type="${type}" value="${value}" ${extra}>
+      <input class="form-input" id="${id}" name="${id}" type="${type}" value="${value}" ${type === 'number' ? 'step="any"' : ''} ${extra}>
     </div>`;
 }
 
@@ -24,7 +24,7 @@ function select(id, labelKey, options, value = '') {
 function formPortfolio(f) {
   const holdingRows = (f.holdings || []).map((h, i) => `
     <tr>
-      <td><input class="form-input" style="width:90px" name="ticker_${i}" value="${h.ticker || ''}"></td>
+      <td><input class="form-input" style="width:110px" name="ticker_${i}" value="${h.ticker || ''}" placeholder="AAPL / 5100386"></td>
       <td><input class="form-input" style="width:80px" name="holding_name_${i}" value="${h.name || ''}" placeholder="אוטו-מילוי"></td>
       <td><input class="form-input" style="width:80px" type="number" name="quantity_${i}" value="${h.quantity || ''}"></td>
       <td><input class="form-input" style="width:100px" type="number" name="totalValue_${i}" value="${h.totalValue || ''}"></td>
@@ -50,7 +50,7 @@ function formPortfolio(f) {
     <div style="overflow-x:auto">
       <table class="holdings-table" id="holdings-table">
         <thead><tr>
-          <th>טיקר</th><th>שם</th><th>כמות</th><th>שווי (₪)</th><th>תחזית</th><th>%</th><th></th>
+          <th>טיקר / קוד קרן</th><th>שם</th><th>כמות</th><th>שווי (₪)</th><th>תחזית</th><th>%</th><th></th>
         </tr></thead>
         <tbody id="holdings-body">${holdingRows}</tbody>
       </table>

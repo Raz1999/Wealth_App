@@ -135,5 +135,38 @@ function totalMonthlyContribution(assets) {
   }, 0);
 }
 
-if (typeof module !== 'undefined') module.exports = { projectStandard, projectPension, projectDeposit, projectAsset, totalMonthlyContribution, getHoldingRate };
-export { projectStandard, projectPension, projectDeposit, projectAsset, totalMonthlyContribution, getHoldingRate };
+/**
+ * Portfolio-aware current value helper.
+ * Portfolio assets store value per holding, not as a top-level currentValue.
+ */
+function getAssetCurrentValue(asset) {
+  if (asset.type === 'portfolio') {
+    return (asset.fields?.holdings || []).reduce((s, h) => s + (h.totalValue || 0), 0);
+  }
+  return asset.fields?.currentValue ?? asset.fields?.balance ?? asset.fields?.principal ?? 0;
+}
+
+/**
+ * Compute projected total at a target date/age/year.
+ * Returns { total, yearAt, ageAt, yearsAway }.
+ */
+function computeTargetForecast(assets, settings) {
+  const { targetMode = 'years', targetValue = 20, currentAge = 0 } = settings;
+  const currentYear = new Date().getFullYear();
+  let months;
+  if (targetMode === 'age' && currentAge > 0)
+    months = Math.max(0, (targetValue - currentAge)) * 12;
+  else if (targetMode === 'year')
+    months = Math.max(0, (targetValue - currentYear)) * 12;
+  else
+    months = Math.max(0, targetValue) * 12;
+
+  const total      = assets.reduce((s, a) => s + (projectAsset(a, months).at(-1)?.value ?? 0), 0);
+  const yearsAway  = Math.round(months / 12);
+  const yearAt     = currentYear + yearsAway;
+  const ageAt      = currentAge ? currentAge + yearsAway : 0;
+  return { total, yearAt, ageAt, yearsAway };
+}
+
+if (typeof module !== 'undefined') module.exports = { projectStandard, projectPension, projectDeposit, projectAsset, totalMonthlyContribution, getHoldingRate, getAssetCurrentValue, computeTargetForecast };
+export { projectStandard, projectPension, projectDeposit, projectAsset, totalMonthlyContribution, getHoldingRate, getAssetCurrentValue, computeTargetForecast };

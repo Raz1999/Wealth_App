@@ -1,23 +1,22 @@
-import { t } from '../js/i18n.js';
+import { t, getLanguage } from '../js/i18n.js';
 import { listAssets } from '../js/assets.js';
-import { totalMonthlyContribution, projectAsset } from '../js/calculations.js';
-import { formatCurrency, formatPercent, escapeHtml } from '../js/utils.js';
+import { totalMonthlyContribution, projectAsset, getAssetCurrentValue, computeTargetForecast } from '../js/calculations.js';
+import { formatCurrency, escapeHtml } from '../js/utils.js';
 
 function avgAnnualReturn(assets) {
   if (!assets.length) return 0;
-  const totalValue = assets.reduce((s, a) => s + (a.fields?.currentValue || a.fields?.balance || a.fields?.principal || 0), 0);
+  const totalValue = assets.reduce((s, a) => s + getAssetCurrentValue(a), 0);
   if (!totalValue) return 0;
-  const weighted = assets.reduce((s, a) => {
-    const v = a.fields?.currentValue || a.fields?.balance || a.fields?.principal || 0;
+  return assets.reduce((s, a) => {
+    const v = getAssetCurrentValue(a);
     const r = a.fields?.expectedReturn || a.fields?.interestRate || 0;
     return s + (v / totalValue) * r;
   }, 0);
-  return weighted;
 }
 
 function renderAssetCard(asset) {
-  const value = asset.fields?.currentValue ?? asset.fields?.balance ?? asset.fields?.principal ?? 0;
-  const ret = asset.fields?.expectedReturn ?? asset.fields?.interestRate ?? 0;
+  const value = getAssetCurrentValue(asset);
+  const ret   = asset.fields?.expectedReturn ?? asset.fields?.interestRate ?? 0;
   return `
     <div class="asset-card" style="--asset-color: ${asset.color}"
          onclick="window.__navigate('#product/${asset.id}')">
@@ -32,22 +31,66 @@ function renderAssetCard(asset) {
         <div class="asset-amount" style="color: ${asset.color}">${formatCurrency(value)}</div>
         <div class="asset-return">+${ret}% / שנה</div>
       </div>
-    </div>
-  `;
+    </div>`;
 }
 
-export function renderDashboard() {
-  const assets = listAssets();
-  const totalValue = assets.reduce((s, a) => s + (a.fields?.currentValue ?? a.fields?.balance ?? a.fields?.principal ?? 0), 0);
-  const monthlyPmt = totalMonthlyContribution(assets);
-  const avgReturn  = avgAnnualReturn(assets);
+// ─── Target forecast card ─────────────────────────────────────
 
-  const horizon = 240;
+export function renderTargetResult(forecast) {
+  const isHe     = getLanguage() === 'he';
+  const yearLabel = isHe ? `בשנת ${forecast.yearAt}` : `Year ${forecast.yearAt}`;
+  const ageLabel  = forecast.ageAt ? (isHe ? ` · גיל ${forecast.ageAt}` : ` · Age ${forecast.ageAt}`) : '';
+  const awayLabel = isHe ? `עוד ${forecast.yearsAway} שנים` : `${forecast.yearsAway} years away`;
+  return `
+    <div class="target-year-text">${yearLabel}${ageLabel}</div>
+    <div style="display:flex;justify-content:space-between;align-items:flex-end;margin-top:8px">
+      <div class="target-amount-big">${formatCurrency(forecast.total)}</div>
+      <div class="target-away-badge">${awayLabel}</div>
+    </div>`;
+}
+
+function renderTargetCard(assets, settings) {
+  const { targetMode = 'years', targetValue = 20, currentAge = 0 } = settings;
+  const forecast = computeTargetForecast(assets, { targetMode, targetValue, currentAge });
+
+  return `
+    <div class="card">
+      <div class="flex-between" style="margin-bottom:14px">
+        <span class="section-label">${t('target.title')}</span>
+        <div class="target-card-inputs">
+          <div class="target-input-group">
+            <span class="target-input-label">${t('target.currentAge')}</span>
+            <input type="number" class="target-num-input" id="target-current-age"
+                   value="${currentAge || ''}" placeholder="—" min="1" max="99" step="1"
+                   oninput="window.__saveTarget()">
+          </div>
+          <div class="target-input-group">
+            <select class="target-select" id="target-mode" onchange="window.__saveTarget()">
+              <option value="years" ${targetMode === 'years' ? 'selected' : ''}>${t('target.modeYears')}</option>
+              <option value="age"   ${targetMode === 'age'   ? 'selected' : ''}>${t('target.modeAge')}</option>
+              <option value="year"  ${targetMode === 'year'  ? 'selected' : ''}>${t('target.modeYear')}</option>
+            </select>
+            <input type="number" class="target-num-input" id="target-value"
+                   value="${targetValue}" min="1" step="1" oninput="window.__saveTarget()">
+            ${targetMode === 'years' ? `<span style="font-size:12px;color:var(--text-muted);font-weight:600">${t('target.years')}</span>` : ''}
+          </div>
+        </div>
+      </div>
+      <div class="target-result" id="target-result">
+        ${renderTargetResult(forecast)}
+      </div>
+    </div>`;
+}
+
+// ─── Main export ──────────────────────────────────────────────
+
+export function renderDashboard(settings = {}) {
+  const assets       = listAssets();
+  const totalValue   = assets.reduce((s, a) => s + getAssetCurrentValue(a), 0);
+  const monthlyPmt   = totalMonthlyContribution(assets);
+  const avgReturn    = avgAnnualReturn(assets);
   const totalForecast = assets.length
-    ? assets.reduce((s, a) => {
-        const pts = projectAsset(a, horizon);
-        return s + (pts[pts.length - 1]?.value ?? 0);
-      }, 0)
+    ? assets.reduce((s, a) => s + (projectAsset(a, 240).at(-1)?.value ?? 0), 0)
     : 0;
 
   const assetCards = assets.length
@@ -73,7 +116,7 @@ export function renderDashboard() {
         </div>
       </div>
 
-      <!-- Global chart (rendered by charts.js after mount) -->
+      <!-- Global projection chart -->
       <div class="card">
         <div class="flex-between" style="margin-bottom:12px">
           <span class="section-label">תחזית צמיחה כוללת</span>
@@ -85,6 +128,9 @@ export function renderDashboard() {
         </div>
         <div class="chart-wrap"><canvas id="chart-global"></canvas></div>
       </div>
+
+      <!-- Target forecast card -->
+      ${renderTargetCard(assets, settings)}
 
       <!-- Asset list -->
       <div class="section-label">${t('dashboard.title')}</div>
@@ -98,6 +144,5 @@ export function renderDashboard() {
         </div>
         <button class="btn btn-primary btn-sm" onclick="window.__navigate('#simulator')">${t('dashboard.openSim')}</button>
       </div>
-    </div>
-  `;
+    </div>`;
 }

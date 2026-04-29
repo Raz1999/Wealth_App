@@ -1,4 +1,4 @@
-import { projectAsset } from './calculations.js';
+import { projectAsset, getAssetCurrentValue } from './calculations.js';
 
 // ─── In-memory state (never persisted to localStorage) ───
 let _horizonMonths = 240;
@@ -88,16 +88,12 @@ export function scenarioAvgReturn(assets) { return _avgReturn(assets, true); }
 
 function _avgReturn(assets, withOverrides) {
   if (!assets.length) return 0;
-  const total = assets.reduce((s, a) => {
-    const f = (withOverrides ? applyOverrides(a) : a).fields;
-    return s + (f.currentValue || f.balance || f.principal || 0);
-  }, 0);
+  const total = assets.reduce((s, a) => s + getAssetCurrentValue(withOverrides ? applyOverrides(a) : a), 0);
   if (!total) return 0;
   return assets.reduce((s, a) => {
     const asset = withOverrides ? applyOverrides(a) : a;
-    const f = asset.fields;
-    const v = f.currentValue || f.balance || f.principal || 0;
-    const r = f.expectedReturn || f.interestRate || 0;
+    const v = getAssetCurrentValue(asset);
+    const r = asset.fields?.expectedReturn || asset.fields?.interestRate || 0;
     return s + (v / total) * r;
   }, 0);
 }
