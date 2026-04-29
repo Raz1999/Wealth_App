@@ -3,13 +3,100 @@ import { loadData, saveData } from './storage.js';
 import { listAssets, getAsset, createAsset, updateAsset, deleteAsset } from './assets.js';
 import { projectAsset } from './calculations.js';
 import { renderProjectionChart } from './charts.js';
+import { formatCurrency } from './utils.js';
 import { renderDashboard } from '../templates/dashboard.js';
 import { renderProduct } from '../templates/product.js';
 import { renderTypePicker } from '../templates/type-picker.js';
+import { renderSimulator, renderAccordionBody } from '../templates/simulator.js';
+import {
+  initSimulator, getSimHorizon, setSimHorizon,
+  setOverride, resetOverride,
+  isAccordionOpen, toggleAccordion,
+  projectWithOverrides, buildSimDatasets,
+  baselineTotal, scenarioTotal,
+  baselineMonthly, scenarioMonthly,
+  baselineAvgReturn, scenarioAvgReturn,
+} from './simulator.js';
 
 const app = document.getElementById('app');
 
 function navigate(hash) { window.location.hash = hash; }
+
+// ─── Simulator helpers ────────────────────────────────────────────
+let _simActive = false;
+
+function getCurrentSimFocusedId() {
+  const parts = (window.location.hash || '').replace('#', '').split('/');
+  return parts[0] === 'simulator' && parts[1] ? parts[1] : null;
+}
+
+function getSimDisplayAssets() {
+  const focusedId = getCurrentSimFocusedId();
+  const assets    = listAssets();
+  return focusedId ? assets.filter(a => a.id === focusedId) : assets;
+}
+
+function updateSimImpactBar() {
+  const assets = getSimDisplayAssets();
+  const months = getSimHorizon();
+
+  const sT = scenarioTotal(assets, months);
+  const dT = sT - baselineTotal(assets, months);
+  const sM = scenarioMonthly(assets);
+  const dM = sM - baselineMonthly(assets);
+  const sR = scenarioAvgReturn(assets);
+  const dR = sR - baselineAvgReturn(assets);
+
+  const el   = id => document.getElementById(id);
+  const cls  = d  => 'badge sim-metric-delta ' + (d >= 0 ? 'badge-positive' : 'badge-negative');
+  const dtxt = (d, isCur) => (d >= 0 ? '+' : '−') + (isCur ? formatCurrency(Math.abs(d)) : Math.abs(d).toFixed(1) + '%');
+
+  if (el('sim-total-val')) {
+    el('sim-total-val').textContent    = formatCurrency(sT);
+    el('sim-total-delta').textContent  = dtxt(dT, true);
+    el('sim-total-delta').className    = cls(dT);
+  }
+  if (el('sim-monthly-val')) {
+    el('sim-monthly-val').textContent  = formatCurrency(sM);
+    el('sim-monthly-delta').textContent = dtxt(dM, true);
+    el('sim-monthly-delta').className  = cls(dM);
+  }
+  if (el('sim-return-val')) {
+    el('sim-return-val').textContent   = sR.toFixed(1) + '%';
+    el('sim-return-delta').textContent = dtxt(dR, false);
+    el('sim-return-delta').className   = cls(dR);
+  }
+}
+
+function updateSimChart() {
+  const assets  = getSimDisplayAssets();
+  const months  = getSimHorizon();
+  const { baseline, scenario } = buildSimDatasets(assets, months);
+  renderProjectionChart('chart-sim', [
+    { label: t('sim.currentTrajectory'), data: baseline, color: '#94a3b8', dashed: true },
+    { label: t('sim.scenario'),          data: scenario, color: '#0077b6', fill: true },
+  ], { months });
+}
+
+function updateSimMiniChart(assetId) {
+  const asset = listAssets().find(a => a.id === assetId);
+  if (!asset) return;
+  const months   = getSimHorizon();
+  const baseline = projectAsset(asset, months).map(p => ({ x: p.month, y: p.value }));
+  const scenario = projectWithOverrides(asset, months).map(p => ({ x: p.month, y: p.value }));
+  renderProjectionChart(`chart-sim-${assetId}`, [
+    { label: t('sim.currentTrajectory'), data: baseline, color: '#94a3b8', dashed: true },
+    { label: t('sim.scenario'),          data: scenario, color: asset.color, fill: true },
+  ], { months });
+
+  const delta = (scenario.at(-1)?.y ?? 0) - (baseline.at(-1)?.y ?? 0);
+  const badge = document.getElementById(`sim-delta-badge-${assetId}`);
+  if (badge) {
+    badge.textContent = (delta >= 0 ? '+' : '−') + formatCurrency(Math.abs(delta));
+    badge.className   = 'badge ' + (delta >= 0 ? 'badge-positive' : 'badge-negative');
+    badge.style.display = '';
+  }
+}
 
 function renderNav() {
   return `
@@ -50,12 +137,14 @@ function route() {
   const type = new URLSearchParams(queryStr).get('type');
 
   if (base === 'dashboard' || base === '') {
+    _simActive = false;
     mount(renderDashboard());
     renderProjectionChart('chart-global',
       [{ data: buildGlobalDataset(240), color: '#0077b6', fill: true }],
       { months: 240 });
 
   } else if (base === 'product') {
+    _simActive = false;
     if (param === 'new' && !type) {
       mount(renderTypePicker());
     } else {
@@ -73,12 +162,17 @@ function route() {
     }
 
   } else if (base === 'simulator') {
-    mount(`<div class="page"><div class="card">
-      <p style="text-align:center;padding:32px;color:var(--text-muted)">
-        הסימולטור יהיה זמין בקרוב
-      </p></div></div>`);
+    const focusedId = param || null;
+    if (!_simActive) {
+      initSimulator(loadData().settings.defaultHorizon || 20);
+      _simActive = true;
+    }
+    mount(renderSimulator(focusedId));
+    updateSimChart();
+    listAssets().forEach(a => { if (isAccordionOpen(a.id)) updateSimMiniChart(a.id); });
 
   } else {
+    _simActive = false;
     mount('<div class="page"><p>Not found</p></div>');
   }
 }
@@ -167,6 +261,66 @@ window.__addHoldingRow = () => {
     <td><input class="form-input" style="width:60px" type="number" name="manualReturn_${i}" placeholder="%"></td>
     <td><button type="button" class="btn btn-danger btn-sm" onclick="this.closest('tr').remove()">✕</button></td>`;
   tbody.appendChild(tr);
+};
+
+// ─── Simulator handlers ───
+window.__simSlider = (assetId, field, rawValue) => {
+  setOverride(assetId, field, rawValue);
+  const span = document.getElementById(`sim-val-${assetId}-${field}`);
+  if (span) {
+    const v = Number(rawValue);
+    const isCurrency = field === 'monthlyContribution' || field === 'salary';
+    const decimals   = (field === 'managementFee' || field === 'accumulationFee') ? 2 : 1;
+    span.textContent = isCurrency ? formatCurrency(v) : v.toFixed(decimals) + '%';
+  }
+  updateSimImpactBar();
+  updateSimChart();
+  if (document.getElementById(`chart-sim-${assetId}`)) updateSimMiniChart(assetId);
+};
+
+window.__simHorizon = (months) => {
+  setSimHorizon(months);
+  const label = document.getElementById('sim-horizon-label');
+  if (label) {
+    const y = Math.round(months / 12);
+    label.textContent = getLanguage() === 'he' ? `${y} שנים` : `${y} Years`;
+  }
+  updateSimImpactBar();
+  updateSimChart();
+  listAssets().forEach(a => { if (document.getElementById(`chart-sim-${a.id}`)) updateSimMiniChart(a.id); });
+};
+
+window.__simToggle = (assetId) => {
+  toggleAccordion(assetId);
+  const body   = document.getElementById(`sim-acc-body-${assetId}`);
+  const arrow  = document.querySelector(`#sim-acc-${assetId} .sim-acc-header span:last-child`);
+  const isOpen = isAccordionOpen(assetId);
+  if (body)  body.style.display  = isOpen ? '' : 'none';
+  if (arrow) arrow.textContent   = isOpen ? '▲' : '▼';
+  if (isOpen) updateSimMiniChart(assetId);
+};
+
+window.__simReset = (assetId) => {
+  resetOverride(assetId);
+  const focusedId = getCurrentSimFocusedId();
+  if (focusedId) {
+    // Focused mode: re-render the whole view to reset slider inputs
+    route();
+    return;
+  }
+  // Global mode: surgically replace accordion body content
+  const asset = listAssets().find(a => a.id === assetId);
+  if (asset) {
+    const body = document.getElementById(`sim-acc-body-${assetId}`);
+    if (body) {
+      body.innerHTML = renderAccordionBody(asset);
+      if (isAccordionOpen(assetId)) updateSimMiniChart(assetId);
+    }
+    const badge = document.getElementById(`sim-delta-badge-${assetId}`);
+    if (badge) badge.style.display = 'none';
+  }
+  updateSimImpactBar();
+  updateSimChart();
 };
 
 // ─── Init ───

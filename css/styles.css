@@ -189,3 +189,46 @@ body {
 .text-blue     { color: var(--blue-primary); }
 .mt-4 { margin-top: 16px; }
 .flex-between { display: flex; justify-content: space-between; align-items: center; }
+
+/* ─── Simulator tabs ─── */
+.sim-tabs { display: flex; gap: 6px; overflow-x: auto; padding-bottom: 2px; }
+.sim-tab {
+  padding: 6px 14px; border-radius: 20px; font-size: 12px; font-weight: 600;
+  cursor: pointer; border: 1px solid var(--border); background: var(--bg-card);
+  color: var(--text-secondary); white-space: nowrap; transition: background 0.15s, color 0.15s;
+}
+.sim-tab.active { background: var(--blue-primary); color: white; border-color: var(--blue-primary); }
+.sim-tab:hover:not(.active) { border-color: var(--blue-primary); color: var(--blue-primary); }
+
+/* ─── Simulator impact bar ─── */
+.sim-impact-bar {
+  display: flex; background: var(--bg-card);
+  border-radius: var(--radius-md); border: 1px solid var(--border); overflow: hidden;
+}
+.sim-metric { flex: 1; text-align: center; padding: 14px 8px; border-inline-end: 1px solid var(--border); }
+.sim-metric:last-child { border-inline-end: none; }
+.sim-metric-label { font-size: 10px; color: var(--text-muted); font-weight: 600; text-transform: uppercase; margin-bottom: 4px; }
+.sim-metric-val { font-size: 16px; font-weight: 800; color: var(--text-primary); margin-bottom: 4px; }
+.sim-metric-delta { font-size: 11px; }
+
+/* ─── Simulator accordion ─── */
+.sim-accordion { display: flex; flex-direction: column; gap: 8px; }
+.sim-acc-row { padding: 0; overflow: hidden; }
+.sim-acc-header {
+  display: flex; align-items: center; justify-content: space-between;
+  padding: 14px 18px; cursor: pointer; transition: background 0.15s;
+}
+.sim-acc-header:hover { background: var(--bg-accent); }
+.sim-acc-body { padding: 14px 18px; border-top: 1px solid var(--border); display: flex; flex-direction: column; gap: 12px; }
+
+/* ─── Simulator sliders ─── */
+.sim-sliders { display: flex; flex-direction: column; gap: 14px; }
+.sim-slider-row { display: flex; flex-direction: column; gap: 4px; }
+.sim-slider-top { display: flex; justify-content: space-between; align-items: center; }
+.sim-slider-label { font-size: 12px; font-weight: 600; color: var(--text-secondary); }
+.sim-slider-val { font-size: 13px; font-weight: 700; color: var(--blue-primary); }
+.sim-range { width: 100%; accent-color: var(--blue-primary); cursor: pointer; height: 4px; }
+[dir="rtl"] .sim-range { direction: rtl; }
+
+/* ─── Simulator mini chart ─── */
+.sim-chart-mini { position: relative; height: 120px; }
