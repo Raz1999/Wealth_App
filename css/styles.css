@@ -32,6 +32,35 @@
   --asset-color-7: #f97316;
 }
 
+/* ─── Dark mode overrides ─── */
+[data-theme="dark"] {
+  --bg-base:        #1a1210;
+  --bg-card:        #2a2018;
+  --bg-accent:      #231a14;
+  --border:         #3d2e22;
+  --text-primary:   #f0e6da;
+  --text-secondary: #c8b49a;
+  --text-muted:     #8a7060;
+  --blue-primary:   #38bdf8;
+  --blue-light:     #7dd3fc;
+  --blue-pale:      #1e3a5f;
+}
+
+[data-theme="dark"] body { background: var(--bg-base); }
+[data-theme="dark"] .card { background: var(--bg-card); }
+[data-theme="dark"] .nav  { background: var(--bg-base); }
+[data-theme="dark"] .card-hero { background: linear-gradient(135deg, #1e3a5f 0%, #0f2744 100%); }
+[data-theme="dark"] .sim-banner { background: #1e3a5f; }
+[data-theme="dark"] .form-input { background: var(--bg-accent); color: var(--text-primary); border-color: var(--border); }
+[data-theme="dark"] select.form-input option { background: var(--bg-card); }
+[data-theme="dark"] .asset-card { background: var(--bg-card); }
+[data-theme="dark"] .btn-ghost { background: var(--bg-accent); color: var(--text-primary); border-color: var(--border); }
+[data-theme="dark"] .target-num-input { background: var(--bg-accent); color: var(--text-primary); border-color: var(--border); }
+[data-theme="dark"] .target-select { background: var(--bg-accent); color: var(--text-primary); border-color: var(--border); }
+[data-theme="dark"] .sim-acc-row { background: var(--bg-card); border-color: var(--border); }
+[data-theme="dark"] .sim-tab.active { background: var(--bg-card); }
+[data-theme="dark"] .sim-tab { color: var(--text-muted); }
+
 /* ─── Reset ─── */
 *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
 body {

@@ -190,5 +190,41 @@ function computeTargetForecast(assets, settings) {
   return { total, yearAt, ageAt, yearsAway, realValue };
 }
 
-if (typeof module !== 'undefined') module.exports = { projectStandard, projectPension, projectDeposit, projectAsset, totalMonthlyContribution, getHoldingRate, getAssetCurrentValue, computeTargetForecast, getPortfolioEffectiveReturn };
-export { projectStandard, projectPension, projectDeposit, projectAsset, totalMonthlyContribution, getHoldingRate, getAssetCurrentValue, computeTargetForecast, getPortfolioEffectiveReturn };
+/**
+ * Compute the additional monthly contribution needed to reach a target amount.
+ * Uses weighted average portfolio return for the PMT formula.
+ * Returns 0 if already on track or no target set.
+ */
+function computeRequiredMonthly(assets, settings) {
+  const { targetMode = 'years', targetValue = 20, currentAge = 0, targetAmount = 0 } = settings;
+  if (!targetAmount) return 0;
+
+  const currentYear = new Date().getFullYear();
+  let months;
+  if (targetMode === 'age' && currentAge > 0) months = Math.max(0, (targetValue - currentAge)) * 12;
+  else if (targetMode === 'year') months = Math.max(0, (targetValue - currentYear)) * 12;
+  else months = Math.max(0, targetValue) * 12;
+
+  if (months <= 0) return 0;
+
+  const baseline = assets.reduce((s, a) => s + (projectAsset(a, months).at(-1)?.value ?? 0), 0);
+  const gap = targetAmount - baseline;
+  if (gap <= 0) return 0;
+
+  const totalVal = assets.reduce((s, a) => s + getAssetCurrentValue(a), 0);
+  let weightedRate = 0;
+  if (totalVal > 0) {
+    weightedRate = assets.reduce((s, a) => {
+      const w = getAssetCurrentValue(a) / totalVal;
+      const r = (a.fields?.expectedReturn || a.fields?.interestRate || 0) / 100;
+      return s + w * r;
+    }, 0);
+  }
+
+  const rm = weightedRate / 12;
+  if (Math.abs(rm) < 1e-10) return Math.ceil(gap / months);
+  return Math.ceil(gap * rm / (Math.pow(1 + rm, months) - 1));
+}
+
+if (typeof module !== 'undefined') module.exports = { projectStandard, projectPension, projectDeposit, projectAsset, totalMonthlyContribution, getHoldingRate, getAssetCurrentValue, computeTargetForecast, getPortfolioEffectiveReturn, computeRequiredMonthly };
+export { projectStandard, projectPension, projectDeposit, projectAsset, totalMonthlyContribution, getHoldingRate, getAssetCurrentValue, computeTargetForecast, getPortfolioEffectiveReturn, computeRequiredMonthly };

@@ -2,6 +2,11 @@ import { getLanguage } from './i18n.js';
 
 const CHART_REGISTRY = {};
 
+function gridColor() {
+  const v = getComputedStyle(document.documentElement).getPropertyValue('--border').trim();
+  return v || gridColor();
+}
+
 export function renderProjectionChart(canvasId, datasets, { months = 240 } = {}) {
   const canvas = document.getElementById(canvasId);
   if (!canvas) return;
@@ -39,11 +44,11 @@ export function renderProjectionChart(canvasId, datasets, { months = 240 } = {})
       scales: {
         x: {
           reverse: isRTL,
-          grid: { color: '#f0e6d3' },
+          grid: { color: gridColor() },
           ticks: { color: '#94a3b8', font: { size: 10 } }
         },
         y: {
-          grid: { color: '#f0e6d3' },
+          grid: { color: gridColor() },
           ticks: {
             color: '#94a3b8', font: { size: 10 },
             callback: v => '₪' + (v >= 1000000 ? (v / 1000000).toFixed(1) + 'M' : (v / 1000).toFixed(0) + 'K')
@@ -133,9 +138,9 @@ export function renderHistoryChart(canvasId, history) {
       maintainAspectRatio: false,
       plugins: { legend: { display: false } },
       scales: {
-        x: { grid: { color: '#f0e6d3' }, ticks: { color: '#94a3b8', font: { size: 10 } } },
+        x: { grid: { color: gridColor() }, ticks: { color: '#94a3b8', font: { size: 10 } } },
         y: {
-          grid: { color: '#f0e6d3' },
+          grid: { color: gridColor() },
           ticks: {
             color: '#94a3b8', font: { size: 10 },
             callback: v => '₪' + (v >= 1000000 ? (v / 1000000).toFixed(1) + 'M' : (v / 1000).toFixed(0) + 'K')

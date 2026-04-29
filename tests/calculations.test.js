@@ -1,5 +1,5 @@
 // tests/calculations.test.js
-const { projectStandard, projectPension, projectDeposit, projectAsset, totalMonthlyContribution } = require('../js/calculations.js');
+const { projectStandard, projectPension, projectDeposit, projectAsset, totalMonthlyContribution, computeRequiredMonthly } = require('../js/calculations.js');
 
 // ─── Standard FV (gemel, kesafi, custom) ───
 test('projectStandard: lump sum with no contributions', () => {
@@ -59,4 +59,28 @@ test('totalMonthlyContribution: sums PMT across asset types', () => {
   ];
   const total = totalMonthlyContribution(assets);
   expect(total).toBeCloseTo(1000 + 500 + 10000 * (7 + 7.5) / 100, 2);
+});
+
+describe('computeRequiredMonthly', () => {
+  test('returns 0 when already on track', () => {
+    const assets = [{ type: 'custom', fields: { currentValue: 10000000, expectedReturn: 7, monthlyContribution: 0 } }];
+    const result = computeRequiredMonthly(assets, { targetMode: 'years', targetValue: 20, currentAge: 0, inflationRate: 0, targetAmount: 5000000 });
+    expect(result).toBe(0);
+  });
+
+  test('returns positive PMT when gap exists at 0% rate', () => {
+    const assets = [{ type: 'custom', fields: { currentValue: 0, expectedReturn: 0, monthlyContribution: 0 } }];
+    const result = computeRequiredMonthly(assets, { targetMode: 'years', targetValue: 100/12, currentAge: 0, inflationRate: 0, targetAmount: 1200000 });
+    expect(result).toBeCloseTo(12000, -2);
+  });
+
+  test('returns 0 when targetAmount is 0', () => {
+    const result = computeRequiredMonthly([], { targetMode: 'years', targetValue: 20, currentAge: 0, inflationRate: 0, targetAmount: 0 });
+    expect(result).toBe(0);
+  });
+
+  test('returns 0 when months is 0', () => {
+    const result = computeRequiredMonthly([], { targetMode: 'years', targetValue: 0, currentAge: 0, inflationRate: 0, targetAmount: 1000000 });
+    expect(result).toBe(0);
+  });
 });

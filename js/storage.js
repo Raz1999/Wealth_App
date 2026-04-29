@@ -2,7 +2,7 @@ const STORAGE_KEY = 'mywealth_data';
 
 const DEFAULT_DATA = {
   assets: [],
-  settings: { language: 'he', defaultHorizon: 20, currentAge: 0, targetMode: 'years', targetValue: 20, inflationRate: 3 },
+  settings: { language: 'he', defaultHorizon: 20, currentAge: 0, targetMode: 'years', targetValue: 20, inflationRate: 3, darkMode: false, targetAmount: 0, targetAllocation: {} },
   marketCache: {},
   history: [],
 };

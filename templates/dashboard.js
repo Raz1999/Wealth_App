@@ -1,6 +1,6 @@
 import { t, getLanguage } from '../js/i18n.js';
 import { listAssets } from '../js/assets.js';
-import { totalMonthlyContribution, projectAsset, getAssetCurrentValue, computeTargetForecast, getPortfolioEffectiveReturn } from '../js/calculations.js';
+import { totalMonthlyContribution, projectAsset, getAssetCurrentValue, computeTargetForecast, getPortfolioEffectiveReturn, computeRequiredMonthly } from '../js/calculations.js';
 import { formatCurrency, escapeHtml } from '../js/utils.js';
 
 const TYPE_COLORS = {
@@ -98,9 +98,61 @@ function renderMaturityAlerts(assets) {
     </div>`;
 }
 
+// ─── Rebalancing card ─────────────────────────────────────────
+
+function renderRebalancingCard(assets, targetAllocation) {
+  const total = assets.reduce((s, a) => s + getAssetCurrentValue(a), 0);
+  if (!total) return '';
+
+  const typeMap = {};
+  assets.forEach(a => {
+    const v = getAssetCurrentValue(a);
+    if (v > 0) typeMap[a.type] = (typeMap[a.type] || 0) + v;
+  });
+
+  const rows = Object.entries(typeMap).map(([type, value]) => {
+    const currentPct = (value / total * 100);
+    const targetPct  = Number(targetAllocation[type]) || 0;
+    const drift      = currentPct - targetPct;
+    const driftStyle = Math.abs(drift) < 2 ? 'color:var(--green-positive)' : drift > 0 ? 'color:var(--yellow-mid)' : 'color:var(--red-negative)';
+    const driftSign  = drift >= 0 ? '+' : '';
+    const color      = TYPE_COLORS[type] || '#94a3b8';
+
+    return `
+      <div style="margin-bottom:14px">
+        <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:4px;flex-wrap:wrap;gap:6px">
+          <span style="font-weight:600;font-size:13px">${t('type.' + type)}</span>
+          <div style="display:flex;align-items:center;gap:8px">
+            <span style="font-size:12px;color:var(--text-muted)">${currentPct.toFixed(1)}%</span>
+            <input type="number" class="target-num-input" style="width:58px"
+                   value="${targetPct || ''}" placeholder="יעד%"
+                   min="0" max="100" step="1"
+                   oninput="window.__saveRebalance('${type}', this.value)">
+            ${targetPct ? `<span style="font-size:11px;font-weight:700;${driftStyle}">${driftSign}${drift.toFixed(1)}%</span>` : ''}
+          </div>
+        </div>
+        <div style="background:var(--border);border-radius:4px;height:8px;overflow:hidden">
+          <div style="width:${Math.min(100, currentPct)}%;height:100%;background:${color};border-radius:4px"></div>
+        </div>
+      </div>`;
+  });
+
+  const totalTarget = Object.values(targetAllocation).reduce((s, v) => s + (Number(v) || 0), 0);
+  const warning = totalTarget > 0 && Math.abs(totalTarget - 100) > 1
+    ? `<div style="font-size:11px;color:var(--yellow-mid);margin-top:4px">סה"כ יעד: ${totalTarget}% (צריך להיות 100%)</div>`
+    : '';
+
+  return `
+    <div class="card">
+      <span class="section-label" style="display:block;margin-bottom:14px">איזון תיק</span>
+      ${rows.join('')}
+      ${warning}
+    </div>`;
+}
+
 // ─── Target forecast card ─────────────────────────────────────
 
-export function renderTargetResult(forecast) {
+export function renderTargetResult(forecast, requiredMonthly = 0, targetAmount = 0) {
   const isHe     = getLanguage() === 'he';
   const yearLabel = isHe ? `בשנת ${forecast.yearAt}` : `Year ${forecast.yearAt}`;
   const ageLabel  = forecast.ageAt ? (isHe ? ` · גיל ${forecast.ageAt}` : ` · Age ${forecast.ageAt}`) : '';
@@ -113,6 +165,14 @@ export function renderTargetResult(forecast) {
          </span>
        </div>`
     : '';
+  const reqBlock = targetAmount > 0
+    ? requiredMonthly > 0
+      ? `<div style="margin-top:10px;padding:8px 12px;background:var(--bg-accent);border-radius:8px;border:1px solid var(--border)">
+           <div style="font-size:11px;color:var(--text-muted)">תוספת חודשית נדרשת להגיע ליעד ${formatCurrency(targetAmount)}</div>
+           <div style="font-size:18px;font-weight:800;color:var(--blue-primary);margin-top:2px">+${formatCurrency(requiredMonthly)} / חודש</div>
+         </div>`
+      : `<div style="margin-top:10px;font-size:12px;color:var(--green-positive);font-weight:700">✓ במסלול הנכון — התחזית עולה על היעד</div>`
+    : '';
   return `
     <div class="target-year-text">${yearLabel}${ageLabel}</div>
     <div style="display:flex;justify-content:space-between;align-items:flex-end;margin-top:8px">
@@ -121,12 +181,16 @@ export function renderTargetResult(forecast) {
         ${realBlock}
       </div>
       <div class="target-away-badge">${awayLabel}</div>
-    </div>`;
+    </div>
+    ${reqBlock}`;
 }
 
 function renderTargetCard(assets, settings) {
-  const { targetMode = 'years', targetValue = 20, currentAge = 0, inflationRate = 3 } = settings;
+  const { targetMode = 'years', targetValue = 20, currentAge = 0, inflationRate = 3, targetAmount = 0 } = settings;
   const forecast = computeTargetForecast(assets, { targetMode, targetValue, currentAge, inflationRate });
+  const requiredMonthly = targetAmount
+    ? computeRequiredMonthly(assets, { targetMode, targetValue, currentAge, targetAmount })
+    : 0;
 
   return `
     <div class="card">
@@ -156,10 +220,16 @@ function renderTargetCard(assets, settings) {
                    oninput="window.__saveTarget()">
             <span style="font-size:12px;color:var(--text-muted);font-weight:600">%</span>
           </div>
+          <div class="target-input-group">
+            <span class="target-input-label">יעד סכום (₪)</span>
+            <input type="number" class="target-num-input" id="target-amount"
+                   value="${targetAmount || ''}" placeholder="—" min="0" step="10000" style="width:100px"
+                   oninput="window.__saveTarget()">
+          </div>
         </div>
       </div>
       <div class="target-result" id="target-result">
-        ${renderTargetResult(forecast)}
+        ${renderTargetResult(forecast, requiredMonthly, targetAmount)}
       </div>
     </div>`;
 }
@@ -223,6 +293,9 @@ export function renderDashboard(settings = {}, history = []) {
 
       <!-- Net worth history chart -->
       ${renderHistoryCard(history)}
+
+      <!-- Rebalancing -->
+      ${renderRebalancingCard(assets, settings.targetAllocation || {})}
 
       <!-- Target forecast card -->
       ${renderTargetCard(assets, settings)}

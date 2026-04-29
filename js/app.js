@@ -2,7 +2,7 @@ import { setLanguage, getLanguage, t } from './i18n.js';
 import { loadData, saveData, snapshotNetWorth } from './storage.js';
 import { listAssets, getAsset, createAsset, updateAsset, deleteAsset } from './assets.js';
 import { fetchPortfolioPrices } from './market.js';
-import { projectAsset, computeTargetForecast, getAssetCurrentValue } from './calculations.js';
+import { projectAsset, computeTargetForecast, getAssetCurrentValue, computeRequiredMonthly } from './calculations.js';
 import { renderProjectionChart, renderAllocationChart, renderHistoryChart } from './charts.js';
 import { formatCurrency } from './utils.js';
 import { renderDashboard, renderTargetResult, buildAllocationSlices } from '../templates/dashboard.js';
@@ -100,10 +100,12 @@ function updateSimMiniChart(assetId) {
 }
 
 function renderNav() {
+  const isDark = loadData().settings.darkMode || false;
   return `
     <nav class="nav">
       <div class="nav-logo">My<span>Wealth</span></div>
       <div class="nav-actions">
+        <button class="lang-toggle" onclick="window.__toggleDark()" title="מצב לילה" style="font-size:16px;padding:6px 10px">${isDark ? '☀️' : '🌙'}</button>
         <button class="lang-toggle" onclick="window.__toggleLang()">${t('nav.lang')}</button>
         <button class="btn btn-primary btn-sm" onclick="window.__navigate('#product/new')">${t('nav.addAsset')}</button>
       </div>
@@ -230,6 +232,13 @@ window.__importData = (input) => {
   };
   reader.readAsText(file);
   input.value = '';
+};
+
+window.__saveRebalance = (type, value) => {
+  const data = loadData();
+  if (!data.settings.targetAllocation) data.settings.targetAllocation = {};
+  data.settings.targetAllocation[type] = Number(value) || 0;
+  saveData(data);
 };
 
 window.__fetchPrices = async () => {
@@ -360,16 +369,23 @@ window.__saveTarget = () => {
     else                      valInput.placeholder = '20';
   }
 
+  const targetAmount  = Number(document.getElementById('target-amount')?.value) || 0;
+
   const data = loadData();
   data.settings.currentAge    = currentAge;
   data.settings.targetMode    = mode;
   data.settings.targetValue   = targetValue;
   data.settings.inflationRate = inflationRate;
+  data.settings.targetAmount  = targetAmount;
   saveData(data);
 
-  const forecast = computeTargetForecast(listAssets(), { currentAge, targetMode: mode, targetValue, inflationRate });
+  const assets = listAssets();
+  const forecast = computeTargetForecast(assets, { currentAge, targetMode: mode, targetValue, inflationRate });
+  const requiredMonthly = targetAmount
+    ? computeRequiredMonthly(assets, { targetMode: mode, targetValue, currentAge, targetAmount })
+    : 0;
   const resultEl = document.getElementById('target-result');
-  if (resultEl) resultEl.innerHTML = renderTargetResult(forecast);
+  if (resultEl) resultEl.innerHTML = renderTargetResult(forecast, requiredMonthly, targetAmount);
 };
 
 // ─── Simulator handlers ───
@@ -433,7 +449,24 @@ window.__simReset = (assetId) => {
 };
 
 // ─── Init ───
+function applyTheme(dark) {
+  document.documentElement.setAttribute('data-theme', dark ? 'dark' : 'light');
+}
+
+window.__toggleDark = () => {
+  const data = loadData();
+  data.settings.darkMode = !data.settings.darkMode;
+  saveData(data);
+  applyTheme(data.settings.darkMode);
+  // Re-render nav to flip icon
+  const nav = document.querySelector('nav');
+  if (nav) nav.outerHTML = renderNav();
+  // Re-attach nav since outerHTML swap orphans it; safer to just re-mount
+  route();
+};
+
 window.addEventListener('hashchange', route);
-const savedLang = loadData().settings.language;
-setLanguage(savedLang);
+const _initData = loadData();
+setLanguage(_initData.settings.language);
+applyTheme(_initData.settings.darkMode || false);
 route();
