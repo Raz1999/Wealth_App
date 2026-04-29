@@ -35,14 +35,15 @@ function projectDeposit({ principal, annualRate, interestType = 'simple', months
   return projectStandard({ pv: principal, annualRate, annualFee: 0, pmt: 0, months: effectiveMonths });
 }
 
-const MARKET_RATE_ANNUAL = 0.10; // SPY historical average
+const MARKET_RATE_ANNUAL = 0.10; // S&P 500 historical average
+const TA125_RATE_ANNUAL  = 0.08; // ת"א 125 historical average
 
 /** Returns holding annual rate as a decimal (0–1). */
 function getHoldingRate(holding) {
-  if (holding.projectionMode === 'market') return MARKET_RATE_ANNUAL;
-  if (holding.projectionMode === 'manual') return (holding.manualReturn || 0) / 100;
-  // 'historical' — Plan B will populate holding.historicalCagr from fetched price data.
-  // Until then, fall back to manualReturn or 7% global equity average.
+  if (holding.projectionMode === 'market')  return MARKET_RATE_ANNUAL;
+  if (holding.projectionMode === 'ta125')   return TA125_RATE_ANNUAL;
+  if (holding.projectionMode === 'manual')  return (holding.manualReturn || 0) / 100;
+  // 'historical' — falls back to manualReturn or 7% until market data is implemented
   return (holding.historicalCagr || holding.manualReturn || 7) / 100;
 }
 
@@ -151,7 +152,7 @@ function getAssetCurrentValue(asset) {
  * Returns { total, yearAt, ageAt, yearsAway }.
  */
 function computeTargetForecast(assets, settings) {
-  const { targetMode = 'years', targetValue = 20, currentAge = 0 } = settings;
+  const { targetMode = 'years', targetValue = 20, currentAge = 0, inflationRate = 0 } = settings;
   const currentYear = new Date().getFullYear();
   let months;
   if (targetMode === 'age' && currentAge > 0)
@@ -161,11 +162,14 @@ function computeTargetForecast(assets, settings) {
   else
     months = Math.max(0, targetValue) * 12;
 
-  const total      = assets.reduce((s, a) => s + (projectAsset(a, months).at(-1)?.value ?? 0), 0);
-  const yearsAway  = Math.round(months / 12);
-  const yearAt     = currentYear + yearsAway;
-  const ageAt      = currentAge ? currentAge + yearsAway : 0;
-  return { total, yearAt, ageAt, yearsAway };
+  const total     = assets.reduce((s, a) => s + (projectAsset(a, months).at(-1)?.value ?? 0), 0);
+  const yearsAway = Math.round(months / 12);
+  const yearAt    = currentYear + yearsAway;
+  const ageAt     = currentAge ? currentAge + yearsAway : 0;
+  const realValue = yearsAway > 0 && inflationRate > 0
+    ? total / Math.pow(1 + inflationRate / 100, yearsAway)
+    : null;
+  return { total, yearAt, ageAt, yearsAway, realValue };
 }
 
 if (typeof module !== 'undefined') module.exports = { projectStandard, projectPension, projectDeposit, projectAsset, totalMonthlyContribution, getHoldingRate, getAssetCurrentValue, computeTargetForecast };

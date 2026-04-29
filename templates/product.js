@@ -29,13 +29,17 @@ function formPortfolio(f) {
       <td><input class="form-input" style="width:80px" type="number" name="quantity_${i}" value="${h.quantity || ''}"></td>
       <td><input class="form-input" style="width:100px" type="number" name="totalValue_${i}" value="${h.totalValue || ''}"></td>
       <td>
-        <select class="form-input" style="width:120px" name="projMode_${i}">
+        <select class="form-input" style="width:148px" name="projMode_${i}"
+                onchange="const td=this.closest('tr').querySelector('.manual-ret-td');td.style.display=this.value==='manual'?'':'none'">
+          <option value="manual"     ${(!h.projectionMode||h.projectionMode==='manual')?'selected':''}>ידני (%)</option>
+          <option value="market"     ${h.projectionMode==='market'?'selected':''}>S&P 500 (~10%)</option>
+          <option value="ta125"      ${h.projectionMode==='ta125'?'selected':''}>ת"א 125 (~8%)</option>
           <option value="historical" ${h.projectionMode==='historical'?'selected':''}>CAGR היסטורי</option>
-          <option value="market"     ${h.projectionMode==='market'?'selected':''}>ממוצע שוק</option>
-          <option value="manual"     ${h.projectionMode==='manual'?'selected':''}>ידני</option>
         </select>
       </td>
-      <td><input class="form-input" style="width:60px" type="number" name="manualReturn_${i}" value="${h.manualReturn || ''}" placeholder="%"></td>
+      <td class="manual-ret-td" style="display:${(h.projectionMode && h.projectionMode !== 'manual') ? 'none' : ''}">
+        <input class="form-input" style="width:60px" type="number" step="any" name="manualReturn_${i}" value="${h.manualReturn || ''}" placeholder="%">
+      </td>
       <td><button type="button" class="btn btn-danger btn-sm" onclick="this.closest('tr').remove()">✕</button></td>
     </tr>
   `).join('');

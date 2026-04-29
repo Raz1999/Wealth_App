@@ -41,21 +41,32 @@ export function renderTargetResult(forecast) {
   const yearLabel = isHe ? `בשנת ${forecast.yearAt}` : `Year ${forecast.yearAt}`;
   const ageLabel  = forecast.ageAt ? (isHe ? ` · גיל ${forecast.ageAt}` : ` · Age ${forecast.ageAt}`) : '';
   const awayLabel = isHe ? `עוד ${forecast.yearsAway} שנים` : `${forecast.yearsAway} years away`;
+  const realBlock = forecast.realValue != null
+    ? `<div style="font-size:13px;color:var(--text-secondary);font-weight:600;margin-top:5px">
+         ${formatCurrency(Math.round(forecast.realValue))}
+         <span style="font-size:11px;color:var(--text-muted);font-weight:400">
+           ${isHe ? 'ריאלי (ערך קנייה היום)' : "real (today's purchasing power)"}
+         </span>
+       </div>`
+    : '';
   return `
     <div class="target-year-text">${yearLabel}${ageLabel}</div>
     <div style="display:flex;justify-content:space-between;align-items:flex-end;margin-top:8px">
-      <div class="target-amount-big">${formatCurrency(forecast.total)}</div>
+      <div>
+        <div class="target-amount-big">${formatCurrency(forecast.total)}</div>
+        ${realBlock}
+      </div>
       <div class="target-away-badge">${awayLabel}</div>
     </div>`;
 }
 
 function renderTargetCard(assets, settings) {
-  const { targetMode = 'years', targetValue = 20, currentAge = 0 } = settings;
-  const forecast = computeTargetForecast(assets, { targetMode, targetValue, currentAge });
+  const { targetMode = 'years', targetValue = 20, currentAge = 0, inflationRate = 3 } = settings;
+  const forecast = computeTargetForecast(assets, { targetMode, targetValue, currentAge, inflationRate });
 
   return `
     <div class="card">
-      <div class="flex-between" style="margin-bottom:14px">
+      <div class="flex-between" style="margin-bottom:14px;flex-wrap:wrap;gap:10px">
         <span class="section-label">${t('target.title')}</span>
         <div class="target-card-inputs">
           <div class="target-input-group">
@@ -72,7 +83,14 @@ function renderTargetCard(assets, settings) {
             </select>
             <input type="number" class="target-num-input" id="target-value"
                    value="${targetValue}" min="1" step="1" oninput="window.__saveTarget()">
-            ${targetMode === 'years' ? `<span style="font-size:12px;color:var(--text-muted);font-weight:600">${t('target.years')}</span>` : ''}
+            <span id="target-suffix" style="font-size:12px;color:var(--text-muted);font-weight:600${targetMode !== 'years' ? ';display:none' : ''}">${t('target.years')}</span>
+          </div>
+          <div class="target-input-group">
+            <span class="target-input-label">אינפלציה</span>
+            <input type="number" class="target-num-input" id="target-inflation"
+                   value="${inflationRate}" min="0" max="20" step="0.5" style="width:62px"
+                   oninput="window.__saveTarget()">
+            <span style="font-size:12px;color:var(--text-muted);font-weight:600">%</span>
           </div>
         </div>
       </div>
@@ -85,10 +103,10 @@ function renderTargetCard(assets, settings) {
 // ─── Main export ──────────────────────────────────────────────
 
 export function renderDashboard(settings = {}) {
-  const assets       = listAssets();
-  const totalValue   = assets.reduce((s, a) => s + getAssetCurrentValue(a), 0);
-  const monthlyPmt   = totalMonthlyContribution(assets);
-  const avgReturn    = avgAnnualReturn(assets);
+  const assets        = listAssets();
+  const totalValue    = assets.reduce((s, a) => s + getAssetCurrentValue(a), 0);
+  const monthlyPmt    = totalMonthlyContribution(assets);
+  const avgReturn     = avgAnnualReturn(assets);
   const totalForecast = assets.length
     ? assets.reduce((s, a) => s + (projectAsset(a, 240).at(-1)?.value ?? 0), 0)
     : 0;

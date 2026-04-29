@@ -73,8 +73,8 @@ function updateSimChart() {
   const months  = getSimHorizon();
   const { baseline, scenario } = buildSimDatasets(assets, months);
   renderProjectionChart('chart-sim', [
-    { label: t('sim.currentTrajectory'), data: baseline, color: '#94a3b8', dashed: true },
-    { label: t('sim.scenario'),          data: scenario, color: '#0077b6', fill: true },
+    { label: t('sim.currentTrajectory'), data: baseline, color: '#94a3b8', dashed: true, width: 1.5 },
+    { label: t('sim.scenario'),          data: scenario, color: '#0077b6', fill: true,   width: 3,   fillOpacity: 0.18 },
   ], { months });
 }
 
@@ -85,8 +85,8 @@ function updateSimMiniChart(assetId) {
   const baseline = projectAsset(asset, months).map(p => ({ x: p.month, y: p.value }));
   const scenario = projectWithOverrides(asset, months).map(p => ({ x: p.month, y: p.value }));
   renderProjectionChart(`chart-sim-${assetId}`, [
-    { label: t('sim.currentTrajectory'), data: baseline, color: '#94a3b8', dashed: true },
-    { label: t('sim.scenario'),          data: scenario, color: asset.color, fill: true },
+    { label: t('sim.currentTrajectory'), data: baseline, color: '#94a3b8', dashed: true, width: 1.5 },
+    { label: t('sim.scenario'),          data: scenario, color: asset.color, fill: true, width: 2.5, fillOpacity: 0.15 },
   ], { months });
 
   const delta = (scenario.at(-1)?.y ?? 0) - (baseline.at(-1)?.y ?? 0);
@@ -254,29 +254,44 @@ window.__addHoldingRow = () => {
     <td><input class="form-input" style="width:80px" name="holding_name_${i}" placeholder="אוטו-מילוי"></td>
     <td><input class="form-input" style="width:80px" type="number" name="quantity_${i}"></td>
     <td><input class="form-input" style="width:100px" type="number" name="totalValue_${i}"></td>
-    <td><select class="form-input" style="width:120px" name="projMode_${i}">
+    <td><select class="form-input" style="width:148px" name="projMode_${i}"
+              onchange="const td=this.closest('tr').querySelector('.manual-ret-td');td.style.display=this.value==='manual'?'':'none'">
+      <option value="manual" selected>ידני (%)</option>
+      <option value="market">S&P 500 (~10%)</option>
+      <option value="ta125">ת"א 125 (~8%)</option>
       <option value="historical">CAGR היסטורי</option>
-      <option value="market">ממוצע שוק</option>
-      <option value="manual" selected>ידני</option>
     </select></td>
-    <td><input class="form-input" style="width:60px" type="number" name="manualReturn_${i}" placeholder="%"></td>
+    <td class="manual-ret-td"><input class="form-input" style="width:60px" type="number" step="any" name="manualReturn_${i}" placeholder="%"></td>
     <td><button type="button" class="btn btn-danger btn-sm" onclick="this.closest('tr').remove()">✕</button></td>`;
   tbody.appendChild(tr);
 };
 
 // ─── Target forecast handler ───
 window.__saveTarget = () => {
-  const currentAge  = Number(document.getElementById('target-current-age')?.value) || 0;
-  const mode        = document.getElementById('target-mode')?.value || 'years';
-  const targetValue = Number(document.getElementById('target-value')?.value) || 20;
+  const currentAge    = Number(document.getElementById('target-current-age')?.value) || 0;
+  const mode          = document.getElementById('target-mode')?.value || 'years';
+  const targetValue   = Number(document.getElementById('target-value')?.value) || 20;
+  const inflationRate = Number(document.getElementById('target-inflation')?.value) ?? 3;
+
+  // Update suffix visibility and input placeholder
+  const suffix = document.getElementById('target-suffix');
+  if (suffix) suffix.style.display = mode === 'years' ? '' : 'none';
+  const valInput = document.getElementById('target-value');
+  if (valInput) {
+    const cy = new Date().getFullYear();
+    if (mode === 'age')       valInput.placeholder = '67';
+    else if (mode === 'year') valInput.placeholder = String(cy + 20);
+    else                      valInput.placeholder = '20';
+  }
 
   const data = loadData();
-  data.settings.currentAge  = currentAge;
-  data.settings.targetMode  = mode;
-  data.settings.targetValue = targetValue;
+  data.settings.currentAge    = currentAge;
+  data.settings.targetMode    = mode;
+  data.settings.targetValue   = targetValue;
+  data.settings.inflationRate = inflationRate;
   saveData(data);
 
-  const forecast = computeTargetForecast(listAssets(), { currentAge, targetMode: mode, targetValue });
+  const forecast = computeTargetForecast(listAssets(), { currentAge, targetMode: mode, targetValue, inflationRate });
   const resultEl = document.getElementById('target-result');
   if (resultEl) resultEl.innerHTML = renderTargetResult(forecast);
 };

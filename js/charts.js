@@ -24,10 +24,10 @@ export function renderProjectionChart(canvasId, datasets, { months = 240 } = {})
         label:           ds.label,
         data:            ds.data.map(p => p.y),
         borderColor:     ds.color ?? '#0077b6',
-        backgroundColor: ds.fill ? hexToRgba(ds.color ?? '#0077b6', 0.1) : 'transparent',
+        backgroundColor: ds.fill ? hexToRgba(ds.color ?? '#0077b6', ds.fillOpacity ?? 0.1) : 'transparent',
         fill:            ds.fill ?? false,
-        borderDash:      ds.dashed ? [6, 4] : [],
-        borderWidth:     2.5,
+        borderDash:      ds.dashed ? [5, 6] : [],
+        borderWidth:     ds.width ?? 2.5,
         pointRadius:     0,
         tension:         0.4,
       }))
