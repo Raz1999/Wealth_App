@@ -17,7 +17,12 @@ function loadData() {
 }
 
 function saveData(data) {
-  localStorage.setItem(STORAGE_KEY, JSON.stringify(data));
+  try {
+    localStorage.setItem(STORAGE_KEY, JSON.stringify(data));
+  } catch (e) {
+    console.error('[storage] saveData failed:', e);
+    throw e;
+  }
 }
 
 function generateId() {

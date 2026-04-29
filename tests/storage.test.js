@@ -26,3 +26,10 @@ test('generateId returns unique strings', () => {
   const ids = new Set(Array.from({ length: 100 }, generateId));
   expect(ids.size).toBe(100);
 });
+
+test('loadData returns default structure when storage contains corrupt JSON', () => {
+  localStorage.setItem('mywealth_data', 'THIS IS NOT JSON {{{');
+  const data = loadData();
+  expect(data.assets).toEqual([]);
+  expect(data.settings.language).toBe('he');
+});
